@@ -1,0 +1,17 @@
+language: c
+c:
+- 4.6
+- 4.8
+compiler:
+- clang
+- gcc
+dist: trusty
+before_install: 
+        - sudo apt-get -qq update
+        - sudo apt-get install -qq -y gcc g++ gcc-4.6 g++-4.6 make xutils bison flex doxygen python-pmw python-ply python-numpy libpng12-dev python-matplotlib doxygen graphviz git python-pmw python-ply python-numpy libpng12-dev libxi-dev libxmu-dev xutils-dev libc-dev libgl1-mesa-dev nvidia-cuda-toolkit
+env: 
+        - CUDA_INSTALL_PATH=/usr/
+language: cpp
+script: source ./setup_environment && make
+after_script:
+- make clean
