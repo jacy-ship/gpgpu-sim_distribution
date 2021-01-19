@@ -407,17 +407,28 @@ void memory_sub_partition::cache_cycle( unsigned cycle )
                 } else {
                     assert(!write_sent);
                     assert(!read_sent);
+		            L2accessQ_full_MSHR++;
                     // L2 cache lock-up: will try again next cycle
                 }
-            }
-        } else {
+            }else{
+            //Zu_Hao:Statistic L2 queue stall.
+			if(output_full)
+				L2accessQ_full_L2toICNT++;
+			if(!port_free)
+				L2accessQ_full_dataport++;
+			if(output_full && !port_free)
+				L2accessQ_full_L2toICN_Dport++;
+	    }
+        }else{
             // L2 is disabled or non-texture access to texture-only L2
             mf->set_status(IN_PARTITION_L2_TO_DRAM_QUEUE,gpu_sim_cycle+gpu_tot_sim_cycle);
             m_L2_dram_queue->push(mf);
             m_icnt_L2_queue->pop();
         }
-    }
-
+    }else{
+	    if(m_L2_dram_queue->full())
+		    L2accessQ_full_L2toDRAM++;
+     }
     // ROP delay queue
     if( !m_rop.empty() && (cycle >= m_rop.front().ready_cycle) && !m_icnt_L2_queue->full() ) {
         mem_fetch* mf = m_rop.front().req;
@@ -430,6 +441,21 @@ void memory_sub_partition::cache_cycle( unsigned cycle )
 bool memory_sub_partition::full() const
 {
     return m_icnt_L2_queue->full();
+}
+//Zu_Hao:No used.
+bool memory_sub_partition::L2_dram_queue_full() const
+{
+    return m_L2_dram_queue->full();
+}
+
+bool memory_sub_partition::L2_icnt_queue_full() const
+{
+    return m_L2_icnt_queue->full();
+}
+
+bool memory_sub_partition::is_data_port_full() const
+{
+    return m_L2cache->data_port_free();
 }
 
 bool memory_sub_partition::L2_dram_queue_empty() const

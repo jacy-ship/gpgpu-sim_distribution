@@ -962,6 +962,23 @@ void gpgpu_sim::gpu_print_stat()
           total_l2_css.print_port_stats(stdout, "L2_cache");
        }
    }
+   //Zu_Hao:Statistic total stall time of four queues in L2 cache  
+   unsigned Toal_L2toDRAM_stall=0;
+   unsigned Toal_L2toICNT_stall=0;
+   unsigned Toal_dataport_stall=0;
+   unsigned Toal_MSHR_stall=0;
+   unsigned Toal_L2toICNTandDport=0;
+   for (unsigned i = 0; i < m_memory_config->m_n_mem_sub_partition; i++)
+   {
+      printf("\n============================= L2 accessQ full ========================\n");
+      fprintf(stdout, "bank[%d]: L2toDRAM_stall:%u L2toICNT_stall:%u dataport_stall:%u MSHR_stall:%u L2toICNT&Dport: %u\n",i,m_memory_sub_partition[i]->L2accessQ_full_L2toDRAM,m_memory_sub_partition[i]->L2accessQ_full_L2toICNT,m_memory_sub_partition[i]->L2accessQ_full_dataport,m_memory_sub_partition[i]->L2accessQ_full_MSHR,m_memory_sub_partition[i]->L2accessQ_full_L2toICN_Dport);
+      Toal_L2toDRAM_stall +=m_memory_sub_partition[i]->L2accessQ_full_L2toDRAM;
+      Toal_L2toICNT_stall +=m_memory_sub_partition[i]->L2accessQ_full_L2toICNT;
+      Toal_dataport_stall +=m_memory_sub_partition[i]->L2accessQ_full_dataport;
+      Toal_MSHR_stall +=m_memory_sub_partition[i]->L2accessQ_full_MSHR;
+      Toal_L2toICNTandDport += m_memory_sub_partition[i]->L2accessQ_full_L2toICN_Dport;
+   }
+   fprintf(stdout,"Toal_L2toDRAM_stall: %u Toal_L2toICNT_stall: %u Toal_dataport_stall: %u Toal_MSHR_stall: %u Toal_L2toICNT&Dport: %u \n", Toal_L2toDRAM_stall ,Toal_L2toICNT_stall,Toal_dataport_stall ,Toal_MSHR_stall,Toal_L2toICNTandDport);
 
    if (m_config.gpgpu_cflog_interval != 0) {
       spill_log_to_file (stdout, 1, gpu_sim_cycle);

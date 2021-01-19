@@ -154,6 +154,10 @@ public:
    void cache_cycle( unsigned cycle );
 
    bool full() const;
+   //Zu_Hao:No used.
+   bool L2_dram_queue_full() const;
+   bool L2_icnt_queue_full() const;
+   bool is_data_port_full() const;
    void push( class mem_fetch* mf, unsigned long long clock_cycle );
    class mem_fetch* pop(); 
    class mem_fetch* top();
@@ -176,7 +180,12 @@ public:
 
    void accumulate_L2cache_stats(class cache_stats &l2_stats) const;
    void get_L2cache_sub_stats(struct cache_sub_stats &css) const;
-
+   //Zu_Hao:statistic L2 queue full cycle(stall time).
+   unsigned L2accessQ_full_L2toDRAM=0;
+   unsigned L2accessQ_full_L2toICNT=0;
+   unsigned L2accessQ_full_dataport=0;
+   unsigned L2accessQ_full_MSHR=0;
+   unsigned L2accessQ_full_L2toICN_Dport=0; 
 private:
 // data
    unsigned m_id;  //< the global sub partition ID

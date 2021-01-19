@@ -807,6 +807,8 @@ public:
     // constructors
     warp_inst_t() 
     {
+        //Zu_Hao: Wapr_div_num recode wapr divergence of a request after coalescing.
+        warp_div=0;           
         m_uid=0;
         m_empty=true; 
         m_config=NULL; 
@@ -825,7 +827,7 @@ public:
     }
     virtual ~warp_inst_t(){
     }
-
+    unsigned warp_div;
     // modifiers
     void broadcast_barrier_reduction( const active_mask_t& access_mask);
     void do_atomic(bool forceDo=false);

@@ -36,6 +36,12 @@
 #include "../tr1_hash_map.h"
 
 #include "addrdec.h"
+//Zu_Hao:  Returning the data of victim cache 
+class print_VC{
+public:
+    void return_VC_state();
+};
+class l1_cache ;
 
 enum cache_block_state {
     INVALID,
@@ -62,7 +68,10 @@ const char * cache_request_status_str(enum cache_request_status status);
 
 struct cache_block_t {
     cache_block_t()
-    {
+    {   
+        //Zu_Hao:block_div_num and ishit initial        
+        block_div_num=-1;
+        ishit = 0;
         m_tag=0;
         m_block_addr=0;
         m_alloc_time=0;
@@ -85,7 +94,15 @@ struct cache_block_t {
         m_status=VALID;
         m_fill_time=time;
     }
-
+    
+    void set_block_div(unsigned request_div_num)
+    {
+        block_div_num= request_div_num;
+    }
+    //Zu_Hao:block_div_num recodes the divergence of cahce line which is setted by request. 
+    //ishit recodes the number of cache hit in cache line. 
+    int              block_div_num;
+    unsigned         ishit;
     new_addr_type    m_tag;
     new_addr_type    m_block_addr;
     unsigned         m_alloc_time;
@@ -114,8 +131,8 @@ enum allocation_policy_t {
 
 
 enum write_allocate_policy_t {
-	NO_WRITE_ALLOCATE,
-	WRITE_ALLOCATE
+    NO_WRITE_ALLOCATE,
+    WRITE_ALLOCATE
 };
 
 enum mshr_config_t {
@@ -143,7 +160,7 @@ public:
     }
     void init(char * config, FuncCache status)
     {
-    	cache_status= status;
+        cache_status= status;
         assert( config );
         char rp, wp, ap, mshr_type, wap, sif;
 
@@ -291,7 +308,7 @@ protected:
     enum allocation_policy_t m_alloc_policy;        // 'm' = allocate on miss, 'f' = allocate on fill
     enum mshr_config_t m_mshr_type;
 
-    write_allocate_policy_t m_write_alloc_policy;	// 'W' = Write allocate, 'N' = No write allocate
+    write_allocate_policy_t m_write_alloc_policy;   // 'W' = Write allocate, 'N' = No write allocate
 
     union {
         unsigned m_mshr_entries;
@@ -320,18 +337,18 @@ protected:
 
 class l1d_cache_config : public cache_config{
 public:
-	l1d_cache_config() : cache_config(){}
-	virtual unsigned set_index(new_addr_type addr) const;
+    l1d_cache_config() : cache_config(){}
+    virtual unsigned set_index(new_addr_type addr) const;
 };
 
 class l2_cache_config : public cache_config {
 public:
-	l2_cache_config() : cache_config(){}
-	void init(linear_to_raw_address_translation *address_mapping);
-	virtual unsigned set_index(new_addr_type addr) const;
+    l2_cache_config() : cache_config(){}
+    void init(linear_to_raw_address_translation *address_mapping);
+    virtual unsigned set_index(new_addr_type addr) const;
 
 private:
-	linear_to_raw_address_translation *m_address_mapping;
+    linear_to_raw_address_translation *m_address_mapping;
 };
 
 class tag_array {
@@ -339,10 +356,12 @@ public:
     // Use this constructor
     tag_array(cache_config &config, int core_id, int type_id );
     ~tag_array();
-
+    //Zu_Hao:probe_div_match: request probe the L1 cache to get hit miss or fail before access L1 data cache,and recode the distribution of cache hit of request. EX:div1 hit div1 cache line or div1 hit div2,3,4,5 etc.
+    enum cache_request_status probe_div_match( new_addr_type addr, unsigned &idx ,unsigned request_div) const; 
     enum cache_request_status probe( new_addr_type addr, unsigned &idx ) const;
-    enum cache_request_status access( new_addr_type addr, unsigned time, unsigned &idx );
-    enum cache_request_status access( new_addr_type addr, unsigned time, unsigned &idx, bool &wb, cache_block_t &evicted );
+    //Zu_Hao: sending request_div to set the divergence of cache line .
+    enum cache_request_status access( new_addr_type addr, unsigned time, unsigned &idx,unsigned request_div);
+    enum cache_request_status access( new_addr_type addr, unsigned time, unsigned &idx, bool &wb, cache_block_t &evicted ,unsigned request_div);
 
     void fill( new_addr_type addr, unsigned time );
     void fill( unsigned idx, unsigned time );
@@ -357,7 +376,9 @@ public:
     float windowed_miss_rate( ) const;
     void get_stats(unsigned &total_access, unsigned &total_misses, unsigned &total_hit_res, unsigned &total_res_fail) const;
 
-	void update_cache_parameters(cache_config &config);
+    void update_cache_parameters(cache_config &config);
+    //Zu_Hao:Printing L1 data cache .
+    void return_line(cache_block_t **L1D_line ,unsigned &idx){  *L1D_line=&m_lines[idx]; printf(" %d m_lines = %d  L1D_line=%d\n",idx,&m_lines[idx],L1D_line); }
 protected:
     // This constructor is intended for use only from derived classes that wish to
     // avoid unnecessary memory allocation that takes place in the
@@ -367,7 +388,6 @@ protected:
                int type_id,
                cache_block_t* new_lines );
     void init( int core_id, int type_id );
-
 protected:
 
     cache_config &m_config;
@@ -417,8 +437,8 @@ public:
 
     void check_mshr_parameters( unsigned num_entries, unsigned max_merged )
     {
-    	assert(m_num_entries==num_entries && "Change of MSHR parameters between kernels is not allowed");
-    	assert(m_max_merged==max_merged && "Change of MSHR parameters between kernels is not allowed");
+        assert(m_num_entries==num_entries && "Change of MSHR parameters between kernels is not allowed");
+        assert(m_max_merged==max_merged && "Change of MSHR parameters between kernels is not allowed");
     }
 
 private:
@@ -535,7 +555,6 @@ class cache_t {
 public:
     virtual ~cache_t() {}
     virtual enum cache_request_status access( new_addr_type addr, mem_fetch *mf, unsigned time, std::list<cache_event> &events ) =  0;
-
     // accessors for cache bandwidth availability 
     virtual bool data_port_free() const = 0; 
     virtual bool fill_port_free() const = 0; 
@@ -574,15 +593,15 @@ public:
         delete m_tag_array;
     }
 
-	void update_cache_parameters(cache_config &config)
-	{
-		m_config=config;
-		m_tag_array->update_cache_parameters(config);
-		m_mshrs.check_mshr_parameters(config.m_mshr_entries,config.m_mshr_max_merge);
-	}
+    void update_cache_parameters(cache_config &config)
+    {
+        m_config=config;
+        m_tag_array->update_cache_parameters(config);
+        m_mshrs.check_mshr_parameters(config.m_mshr_entries,config.m_mshr_max_merge);
+    }
 
     virtual enum cache_request_status access( new_addr_type addr, mem_fetch *mf, unsigned time, std::list<cache_event> &events ) =  0;
-    /// Sends next request to lower level of memory
+/// Sends next request to lower level of memory
     void cycle();
     /// Interface for response from lower memory level (model bandwidth restictions in caller)
     void fill( mem_fetch *mf, unsigned time );
@@ -611,7 +630,8 @@ public:
     // accessors for cache bandwidth availability 
     bool data_port_free() const { return m_bandwidth_management.data_port_free(); } 
     bool fill_port_free() const { return m_bandwidth_management.fill_port_free(); } 
-
+    //Zu_Hao: printing L1 data cache.
+    void return_tag_array(cache_block_t **L1D_line ,unsigned &idx){ printf("Rtn_tag L1D_line =%d idx=%d\n",*L1D_line,idx);  m_tag_array->return_line(L1D_line,idx); }
 protected:
     // Constructor that can be used by derived classes with custom tag arrays
     baseline_cache( const char *name,
@@ -661,14 +681,14 @@ protected:
 
     /// Checks whether this request can be handled on this cycle. num_miss equals max # of misses to be handled on this cycle
     bool miss_queue_full(unsigned num_miss){
-    	  return ( (m_miss_queue.size()+num_miss) >= m_config.m_miss_queue_size );
+          return ( (m_miss_queue.size()+num_miss) >= m_config.m_miss_queue_size );
     }
     /// Read miss handler without writeback
     void send_read_request(new_addr_type addr, new_addr_type block_addr, unsigned cache_index, mem_fetch *mf,
-    		unsigned time, bool &do_miss, std::list<cache_event> &events, bool read_only, bool wa);
+            unsigned time, bool &do_miss, std::list<cache_event> &events, bool read_only, bool wa);
     /// Read miss handler. Check MSHR hit or MSHR available
     void send_read_request(new_addr_type addr, new_addr_type block_addr, unsigned cache_index, mem_fetch *mf,
-    		unsigned time, bool &do_miss, bool &wb, cache_block_t &evicted, std::list<cache_event> &events, bool read_only, bool wa);
+            unsigned time, bool &do_miss, bool &wb, cache_block_t &evicted, std::list<cache_event> &events, bool read_only, bool wa);
 
     /// Sub-class containing all metadata for port bandwidth management 
     class bandwidth_management 
@@ -707,28 +727,47 @@ public:
 
     /// Access cache for read_only_cache: returns RESERVATION_FAIL if request could not be accepted (for any reason)
     virtual enum cache_request_status access( new_addr_type addr, mem_fetch *mf, unsigned time, std::list<cache_event> &events );
-
     virtual ~read_only_cache(){}
 
 protected:
     read_only_cache( const char *name, cache_config &config, int core_id, int type_id, mem_fetch_interface *memport, enum mem_fetch_status status, tag_array* new_tag_array )
     : baseline_cache(name,config,core_id,type_id,memport,status, new_tag_array){}
 };
-
+//Zu_Hao: Victim cache implement.
+class victim_cache  {       // victim cache like tag_array
+public:
+        victim_cache(cache_config &config):m_config(config)
+        {
+            m_lines = new cache_block_t[32];  //fully ass = MAX_DEFAULT_CACHE_SIZE_MULTIBLIER*1set*32way   
+        }
+        int  NegTim_count();
+        void keep_L1D_line(cache_block_t *Save_Line , cache_block_t *Ass_Line );
+        void Line_Swap(unsigned &L1D_idx , unsigned &VC_idx ,l1_cache *L1D_cache);
+        enum cache_request_status VC_probe( new_addr_type addr ,unsigned &idx) ;
+        cache_block_t *m_lines;
+        int ttt=0;
+protected:
+        
+        cache_config &m_config;
+        unsigned m_access;
+        unsigned m_miss;
+        unsigned m_pending_hit; // number of cache miss that hit a line that is allocated but not filled
+        unsigned m_res_fail;
+};
 /// Data cache - Implements common functions for L1 and L2 data cache
 class data_cache : public baseline_cache {
 public:
     data_cache( const char *name, cache_config &config,
-    			int core_id, int type_id, mem_fetch_interface *memport,
+                int core_id, int type_id, mem_fetch_interface *memport,
                 mem_fetch_allocator *mfcreator, enum mem_fetch_status status,
                 mem_access_type wr_alloc_type, mem_access_type wrbk_type )
-    			: baseline_cache(name,config,core_id,type_id,memport,status)
+                : baseline_cache(name,config,core_id,type_id,memport,status)
     {
         init( mfcreator );
         m_wr_alloc_type = wr_alloc_type;
         m_wrbk_type = wrbk_type;
     }
-
+    
     virtual ~data_cache() {}
 
     virtual void init( mem_fetch_allocator *mfcreator )
@@ -772,6 +811,13 @@ public:
                                               mem_fetch *mf,
                                               unsigned time,
                                               std::list<cache_event> &events );
+//Zu_Hao: request access l1 data cache and victim cache.
+    virtual enum cache_request_status access_L1D_VC( new_addr_type addr,
+                                              mem_fetch *mf,
+                                              unsigned time,
+                                              std::list<cache_event> &events,
+                                              victim_cache *m_victim_cache ,
+                                              l1_cache *L1D_cache);
 protected:
     data_cache( const char *name,
                 cache_config &config,
@@ -928,7 +974,10 @@ public:
     l1_cache(const char *name, cache_config &config,
             int core_id, int type_id, mem_fetch_interface *memport,
             mem_fetch_allocator *mfcreator, enum mem_fetch_status status )
-            : data_cache(name,config,core_id,type_id,memport,mfcreator,status, L1_WR_ALLOC_R, L1_WRBK_ACC){}
+            : data_cache(name,config,core_id,type_id,memport,mfcreator,status, L1_WR_ALLOC_R, L1_WRBK_ACC){
+                //Zu_Hao: !!??
+                l1_config=config;
+    }
 
     virtual ~l1_cache(){}
 
@@ -937,7 +986,11 @@ public:
                 mem_fetch *mf,
                 unsigned time,
                 std::list<cache_event> &events );
-
+    //Zu_Hao: Printing the distribution of cache hit of request and  the number of cache hit. 
+    void printf_div_match(int *one_to_one,int *one_to_two,int *two_to_one,int *two_to_two);
+    void printf_ishit(unsigned CL_ishit[]);
+    victim_cache m_victim_cache = victim_cache(l1_config);
+    //void printf_VC();
 protected:
     l1_cache( const char *name,
               cache_config &config,
@@ -950,7 +1003,7 @@ protected:
     : data_cache( name,
                   config,
                   core_id,type_id,memport,mfcreator,status, new_tag_array, L1_WR_ALLOC_R, L1_WRBK_ACC ){}
-
+    cache_config l1_config;
 };
 
 /// Models second level shared cache with global write-back
