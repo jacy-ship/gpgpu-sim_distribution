@@ -36,13 +36,14 @@
 #include "../tr1_hash_map.h"
 
 #include "addrdec.h"
-//Zu_Hao:  Returning the data of victim cache 
-class print_VC{
+//Zu_Hao:  Returning the statistic data from gpu-cache.cc to shader.cc
+class cache_statistic{
 public:
-    void return_VC_state();
+    void return_VC_statistic();
+    void return_div_match_statistic();
 };
 class l1_cache ;
-
+class l2_cache ;
 enum cache_block_state {
     INVALID,
     RESERVED,
@@ -357,7 +358,8 @@ public:
     tag_array(cache_config &config, int core_id, int type_id );
     ~tag_array();
     //Zu_Hao:probe_div_match: request probe the L1 cache to get hit miss or fail before access L1 data cache,and recode the distribution of cache hit of request. EX:div1 hit div1 cache line or div1 hit div2,3,4,5 etc.
-    enum cache_request_status probe_div_match( new_addr_type addr, unsigned &idx ,unsigned request_div) const; 
+    enum cache_request_status probe_div_match( new_addr_type addr, unsigned &idx ,int request_div) const;
+    enum cache_request_status L2_probe_div_match( new_addr_type addr, unsigned &idx ,int request_div) const;
     enum cache_request_status probe( new_addr_type addr, unsigned &idx ) const;
     //Zu_Hao: sending request_div to set the divergence of cache line .
     enum cache_request_status access( new_addr_type addr, unsigned time, unsigned &idx,unsigned request_div);
@@ -741,8 +743,8 @@ public:
             m_lines = new cache_block_t[32];  //fully ass = MAX_DEFAULT_CACHE_SIZE_MULTIBLIER*1set*32way   
         }
         int  NegTim_count();
-        void keep_L1D_line(cache_block_t *Save_Line , cache_block_t *Ass_Line );
-        void Line_Swap(unsigned &L1D_idx , unsigned &VC_idx ,l1_cache *L1D_cache);
+        void keep_cache_line(cache_block_t *Save_Line , cache_block_t *Ass_Line );
+        void Line_Swap(unsigned &L1D_idx , unsigned &VC_idx);
         enum cache_request_status VC_probe( new_addr_type addr ,unsigned &idx) ;
         cache_block_t *m_lines;
         int ttt=0;
@@ -818,6 +820,12 @@ public:
                                               std::list<cache_event> &events,
                                               victim_cache *m_victim_cache ,
                                               l1_cache *L1D_cache);
+    virtual enum cache_request_status access_L2_VC( new_addr_type addr,
+                                              mem_fetch *mf,
+                                              unsigned time,
+                                              std::list<cache_event> &events,
+                                              victim_cache *m_victim_cache ,
+                                              l2_cache *L2_cache);
 protected:
     data_cache( const char *name,
                 cache_config &config,
@@ -1013,15 +1021,18 @@ public:
     l2_cache(const char *name,  cache_config &config,
             int core_id, int type_id, mem_fetch_interface *memport,
             mem_fetch_allocator *mfcreator, enum mem_fetch_status status )
-            : data_cache(name,config,core_id,type_id,memport,mfcreator,status, L2_WR_ALLOC_R, L2_WRBK_ACC){}
+            : data_cache(name,config,core_id,type_id,memport,mfcreator,status, L2_WR_ALLOC_R, L2_WRBK_ACC){
+                l2_config=config;
+            }
 
     virtual ~l2_cache() {}
-
+    victim_cache m_victim_l2cache =victim_cache(l2_config);
     virtual enum cache_request_status
         access( new_addr_type addr,
                 mem_fetch *mf,
                 unsigned time,
                 std::list<cache_event> &events );
+    cache_config l2_config;
 };
 
 /*****************************************************************************/

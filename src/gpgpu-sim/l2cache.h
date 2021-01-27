@@ -159,16 +159,16 @@ public:
    bool L2_icnt_queue_full() const;
    bool is_data_port_full() const;
    void push( class mem_fetch* mf, unsigned long long clock_cycle );
-   class mem_fetch* pop(); 
-   class mem_fetch* top();
+   class mem_fetch* pop(bool mf_from_fast_queue); 
+   class mem_fetch* top(bool *mf_from_fast_queue);
    void set_done( mem_fetch *mf );
 
    unsigned flushL2();
 
    // interface to L2_dram_queue
-   bool L2_dram_queue_empty() const; 
-   class mem_fetch* L2_dram_queue_top() const; 
-   void L2_dram_queue_pop(); 
+   void L2_dram_queue_empty(int *empty_flag) const; 
+   class mem_fetch* L2_dram_queue_top(int empty_flag) const; 
+   void L2_dram_queue_pop(int empty_flag); 
 
    // interface to dram_L2_queue
    bool dram_L2_queue_full() const; 
@@ -186,6 +186,11 @@ public:
    unsigned L2accessQ_full_dataport=0;
    unsigned L2accessQ_full_MSHR=0;
    unsigned L2accessQ_full_L2toICN_Dport=0; 
+   //Zu_Hao:L2 priority queue
+   fifo_pipeline<mem_fetch> *m_L2_icnt_fast_queue;
+   fifo_pipeline<mem_fetch> *m_icnt_L2_fast_queue;
+   fifo_pipeline<mem_fetch> *m_L2_dram_fast_queue;
+   fifo_pipeline<mem_fetch> *m_dram_L2_fast_queue;
 private:
 // data
    unsigned m_id;  //< the global sub partition ID
@@ -229,8 +234,14 @@ public:
     }
     virtual void push(mem_fetch *mf) 
     {
-        mf->set_status(IN_PARTITION_L2_TO_DRAM_QUEUE,0/*FIXME*/);
-        m_unit->m_L2_dram_queue->push(mf);
+         int use_L2toDRAM_fs_queue = 0 ;
+         int   L2_bypass_upper = 0;
+         int   L2_bypass_lower = 0;
+         mf->set_status(IN_PARTITION_L2_TO_DRAM_QUEUE,0/*FIXME*/);
+         if (use_L2toDRAM_fs_queue && (mf->mf_div >= L2_bypass_lower) && (mf->mf_div <= L2_bypass_upper))
+           m_unit->m_L2_dram_fast_queue->push(mf);
+         else
+           m_unit->m_L2_dram_queue->push(mf);
     }
 private:
     memory_sub_partition *m_unit;

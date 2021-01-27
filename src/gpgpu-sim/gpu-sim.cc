@@ -978,7 +978,7 @@ void gpgpu_sim::gpu_print_stat()
       Toal_MSHR_stall +=m_memory_sub_partition[i]->L2accessQ_full_MSHR;
       Toal_L2toICNTandDport += m_memory_sub_partition[i]->L2accessQ_full_L2toICN_Dport;
    }
-   fprintf(stdout,"Toal_L2toDRAM_stall: %u Toal_L2toICNT_stall: %u Toal_dataport_stall: %u Toal_MSHR_stall: %u Toal_L2toICNT&Dport: %u \n", Toal_L2toDRAM_stall ,Toal_L2toICNT_stall,Toal_dataport_stall ,Toal_MSHR_stall,Toal_L2toICNTandDport);
+   fprintf(stdout,"Toal_L2toDRAM_stall: %u\nToal_L2toICNT_stall: %u\nToal_dataport_stall: %u\nToal_MSHR_stall: %u\nToal_L2toICNT&Dport: %u\n", Toal_L2toDRAM_stall ,Toal_L2toICNT_stall,Toal_dataport_stall ,Toal_MSHR_stall,Toal_L2toICNTandDport);
 
    if (m_config.gpgpu_cflog_interval != 0) {
       spill_log_to_file (stdout, 1, gpu_sim_cycle);
@@ -1182,8 +1182,9 @@ void gpgpu_sim::cycle()
    }
     if (clock_mask & ICNT) {
         // pop from memory controller to interconnect
+        bool mf_from_fast_queue = false;
         for (unsigned i=0;i<m_memory_config->m_n_mem_sub_partition;i++) {
-            mem_fetch* mf = m_memory_sub_partition[i]->top();
+            mem_fetch* mf = m_memory_sub_partition[i]->top(&mf_from_fast_queue);
             if (mf) {
                 unsigned response_size = mf->get_is_write()?mf->get_ctrl_size():mf->size();
                 if ( ::icnt_has_buffer( m_shader_config->mem2device(i), response_size ) ) {
@@ -1191,12 +1192,12 @@ void gpgpu_sim::cycle()
                        mf->set_return_timestamp(gpu_sim_cycle+gpu_tot_sim_cycle);
                     mf->set_status(IN_ICNT_TO_SHADER,gpu_sim_cycle+gpu_tot_sim_cycle);
                     ::icnt_push( m_shader_config->mem2device(i), mf->get_tpc(), mf, response_size );
-                    m_memory_sub_partition[i]->pop();
+                    m_memory_sub_partition[i]->pop(mf_from_fast_queue);
                 } else {
                     gpu_stall_icnt2sh++;
                 }
             } else {
-               m_memory_sub_partition[i]->pop();
+               m_memory_sub_partition[i]->pop(mf_from_fast_queue);
             }
         }
     }

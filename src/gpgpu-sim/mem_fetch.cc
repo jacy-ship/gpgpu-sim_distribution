@@ -43,8 +43,10 @@ mem_fetch::mem_fetch( const mem_access_t &access,
 {
    m_request_uid = sm_next_mf_request_uid++;
    m_access = access;
-   if( inst ) { 
+   if( inst ) { //如果是no allocate write就不會進來到這裡面
        m_inst = *inst;
+        //Zu_Hao:assign instruction divergence to memory fetch divergence
+       mf_div = m_inst.warp_div;
        assert( wid == m_inst.warp_id() );
    }
    m_data_size = access.get_size();

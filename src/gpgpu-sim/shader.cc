@@ -2057,11 +2057,9 @@ void gpgpu_sim::shader_print_cache_stats( FILE *fout ) const{
         fprintf(fout, "\tL1D_total_cache_pending_hits = %u\n", total_css.pending_hits);
         fprintf(fout, "\tL1D_total_cache_reservation_fails = %u\n", total_css.res_fails);
         total_css.print_port_stats(fout, "\tL1D_cache"); 
-        int div_match[2][2]={0};
-        for (unsigned i=0;i<m_shader_config->n_simt_clusters;i++){        
-            m_cluster[i]->printf_div_match(&div_match[0][0],&div_match[0][1],&div_match[1][0],&div_match[1][1]);
-        }
-        printf("div1_match  =  1to1 = %u , 1to2 = %u \n div2_match = 2to1 = %u ,2to2 = %u \n ",div_match[0][0],div_match[0][1],div_match[1][0],div_match[1][1]);
+        fprintf(fout,"L1D request hit statistic !!\n");
+        cache_statistic data_print;
+        data_print.return_div_match_statistic();
         for (unsigned i=0;i<m_shader_config->n_simt_clusters;i++){
             m_cluster[i]->printf_ishit(CL_ishit_count);
         }
@@ -2071,8 +2069,8 @@ void gpgpu_sim::shader_print_cache_stats( FILE *fout ) const{
            sun_ishit +=CL_ishit_count[i];
         }   
         printf("CL_sun = %u \n",sun_ishit);
-        print_VC VC_state;
-        VC_state.return_VC_state();
+        
+        data_print.return_VC_statistic();
     }
 
     // L1C

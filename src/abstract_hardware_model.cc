@@ -306,7 +306,7 @@ void warp_inst_t::generate_mem_accesses()
         break;
     }
 
-    case tex_space: 
+    case tex_space:
         cache_block_size = m_config->gpgpu_cache_texl1_linesize;
         break;
     case const_space:  case param_space_kernel:
@@ -328,8 +328,8 @@ void warp_inst_t::generate_mem_accesses()
     }
     //Zu_Hao: m_accessq.size is the number of requests now.
     //starting_queue_size is the number of requests before adding this request.(this is aways zero!!?) 
-
-    warp_inst_t::warp_div =  m_accessq.size() - starting_queue_size;   
+    //texture.context.shared cache miss requests is with warp_div = 0 
+    warp_inst_t::warp_div =  m_accessq.size() - starting_queue_size;
     if( cache_block_size ) {
         assert( m_accessq.empty() );
         mem_access_byte_mask_t byte_mask; 
