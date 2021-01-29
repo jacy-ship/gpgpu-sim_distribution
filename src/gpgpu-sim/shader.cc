@@ -50,6 +50,8 @@
 #define MAX(a,b) (((a)>(b))?(a):(b))
 #define MIN(a,b) (((a)<(b))?(a):(b))
 //Zu_Hao:statistic the divergence distribution of L1 cache line and reuse time.
+bool use_L1_bypass = 0;
+int L1_bypass_div = 2;
 unsigned warp_div_count[33]={0};
 unsigned CL_ishit_count[11] = {0};
 /////////////////////////////////////////////////////////////////////////////
@@ -639,6 +641,7 @@ void shader_core_ctx::fetch()
                                               m_sid,
                                               m_tpc,
                                               m_memory_config );
+                mf->mf_div = 33;
                 std::list<cache_event> events;
                 enum cache_request_status status = m_L1I->access( (new_addr_type)ppc, mf, gpu_sim_cycle+gpu_tot_sim_cycle,events);
                 if( status == MISS ) {
@@ -1392,8 +1395,10 @@ bool ldst_unit::memory_cycle( warp_inst_t &inst, mem_stage_stall_type &stall_rea
    const mem_access_t &access = inst.accessq_back();
 
    bool bypassL1D = false; 
-   //if(inst.warp_div != 1)
-       // inst.cache_op = CACHE_GLOBAL ; 
+   if(use_L1_bypass){
+        if(inst.warp_div > L1_bypass_div)
+            inst.cache_op = CACHE_GLOBAL ; 
+   }
    if ( CACHE_GLOBAL == inst.cache_op || (m_L1D == NULL) ) {
        bypassL1D = true; 
    } else if (inst.space.is_global()) { // global memory access 

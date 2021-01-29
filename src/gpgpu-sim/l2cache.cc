@@ -52,8 +52,9 @@ bool use_DRAMtoL2_fs_queue = 0;
 
 //Zu_Hao:L2 bypass Switch
 bool  L2_bypass = 0;
-int   L2_bypass_upper = 0;
 int   L2_bypass_lower = 0;
+int   L2_bypass_upper = 32;
+
 
 mem_fetch * partition_mf_allocator::alloc(new_addr_type addr, mem_access_type type, unsigned size, bool wr ) const 
 {
@@ -380,7 +381,7 @@ void memory_sub_partition::cache_cycle( unsigned cycle )  //DRAM 寫回L2 cache�
         }  
         else
             mf = m_dram_L2_queue->top();
-        bool L2_bypass_condition = (mf->mf_div >= L2_bypass_lower && mf->mf_div <=L2_bypass_upper); 
+        bool L2_bypass_condition = ((mf->mf_div >= L2_bypass_lower && mf->mf_div <=L2_bypass_upper)|| mf->mf_div==33); 
         if ( !m_config->m_L2_config.disabled() && m_L2cache->waiting_for_fill(mf) && (L2_bypass ? L2_bypass_condition : 1)) {
             if (m_L2cache->fill_port_free()) {
                 mf->set_status(IN_PARTITION_L2_FILL_QUEUE,gpu_sim_cycle+gpu_tot_sim_cycle);
@@ -429,7 +430,7 @@ void memory_sub_partition::cache_cycle( unsigned cycle )  //DRAM 寫回L2 cache�
             mf = m_icnt_L2_queue->top();
         }
         //Zu_Hao:L2 bypass
-        bool L2_bypass_condition = (mf->mf_div >= L2_bypass_lower && mf->mf_div <=L2_bypass_upper); 
+        bool L2_bypass_condition = ((mf->mf_div >= L2_bypass_lower && mf->mf_div <=L2_bypass_upper)|| mf->mf_div==33);
         if ( !m_config->m_L2_config.disabled() &&
               ( (m_config->m_L2_texure_only && mf->istexture()) || (!m_config->m_L2_texure_only)) &&
               (L2_bypass ? L2_bypass_condition : 1)) 

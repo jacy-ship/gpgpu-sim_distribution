@@ -43,7 +43,7 @@ mem_fetch::mem_fetch( const mem_access_t &access,
 {
    m_request_uid = sm_next_mf_request_uid++;
    m_access = access;
-   if( inst ) { //如果是no allocate write就不會進來到這裡面
+   if( inst ) { //如果是L1 cache line的請求要寫到L2 cache的時候，就不會有instruction的產生，所以進入L2的時候mf的divergence會是預設的
        m_inst = *inst;
         //Zu_Hao:assign instruction divergence to memory fetch divergence
        mf_div = m_inst.warp_div;

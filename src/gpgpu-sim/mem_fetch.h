@@ -74,8 +74,9 @@ public:
 
    void print( FILE *fp, bool print_inst = true ) const;
    //Zu_Hao:Recode the divergence of memry fetch.
-   //What is mf_div = -1 如果mf的div為-1那就是代表request為NULL的，這個在ICNT to L2 的queue就會被過濾掉所以不會有mf = -1的情況發生
-   int  mf_div = -1;
+   //如果mf_div =35 的話，那就代表這個cache line是由L1cache的cache line寫下來的資料，所以如果不要有改變的話就要把L1 cache line的
+   //div值一起抓下來
+   int  mf_div = 35;  
    const addrdec_t &get_tlx_addr() const { return m_raw_addr; }
    unsigned get_data_size() const { return m_data_size; }
    void     set_data_size( unsigned size ) { m_data_size=size; }

@@ -740,7 +740,7 @@ class victim_cache  {       // victim cache like tag_array
 public:
         victim_cache(cache_config &config):m_config(config)
         {
-            m_lines = new cache_block_t[32];  //fully ass = MAX_DEFAULT_CACHE_SIZE_MULTIBLIER*1set*32way   
+            m_lines = new cache_block_t[1024];  //fully ass = MAX_DEFAULT_CACHE_SIZE_MULTIBLIER*1set*32way   
         }
         int  NegTim_count();
         void keep_cache_line(cache_block_t *Save_Line , cache_block_t *Ass_Line );

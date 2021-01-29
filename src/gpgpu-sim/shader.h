@@ -1544,6 +1544,7 @@ public:
     
     mem_fetch *alloc( const warp_inst_t &inst, const mem_access_t &access ) const
     {
+        
         warp_inst_t inst_copy = inst;
         mem_fetch *mf = new mem_fetch(access, 
                                       &inst_copy, 

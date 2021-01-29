@@ -28,13 +28,15 @@
 #include "gpu-cache.h"
 #include "stat-tool.h"
 #include <assert.h>
-
+//Zu_Hao: bypass switch
 #define MAX_DEFAULT_CACHE_SIZE_MULTIBLIER 4
-bool use_ori_L2cache = 0;
-bool use_ori_L1cache = 0;
+bool use_bypass_L1cache = 1;
+bool use_bypass_L2cache = 1;
+bool is_use_L1VC = 1;   //VC開關
+
 //Zu_Hao: those variables are used in L1 data cache or L1 victim cache 
-unsigned L1_warp_div_match[5][33]={0}; 
-unsigned L2_warp_div_match[5][33]={0}; 
+unsigned L1_warp_div_match[5][34]={0}; 
+unsigned L2_warp_div_match[5][34]={0}; 
 unsigned L1_temp_div = 0;
 unsigned L1_temp_miss_div =0;
 int      L1_temp_ishit = 0;
@@ -53,16 +55,24 @@ int      L2VC_access =0;
 int      L2VC_hit = 0;
 int      L2VC_miss =0;
 int      L2VC_RF =0;   
+int      wb_div  = 0;
 void cache_statistic::return_VC_statistic(){
-    printf("L1VC_ACCESS = %d \n L1VC_HIT =%d \n L1VC_MISS =%d \n L1VC_RF= %d\n",L1VC_access,L1VC_hit,L1VC_miss,L1VC_RF);
-    printf("L2VC_ACCESS = %d \n L2VC_HIT =%d \n L2VC_MISS =%d \n L2VC_RF= %d\n",L1VC_access,L1VC_hit,L1VC_miss,L1VC_RF);
+    printf("L1VC_ACCESS = %d \n L1VC_HIT = %d \n L1VC_MISS = %d \n L1VC_RF = %d\n",L1VC_access,L1VC_hit,L1VC_miss,L1VC_RF);
+    printf("L2VC_ACCESS = %d \n L2VC_HIT = %d \n L2VC_MISS = %d \n L2VC_RF = %d\n",L2VC_access,L2VC_hit,L2VC_miss,L2VC_RF);
 }
 void cache_statistic::return_div_match_statistic(){
     for (int i = 0; i < 5; i++)
     {
-        for (int j = 0; j < 33; j++)
+        for (int j = 0; j < 34; j++)
         {
             printf("Request %d hit %d = %d \n",i , j ,L1_warp_div_match[i][j]);
+        }   
+    }
+    for (int i = 0; i < 5; i++)
+    {
+        for (int j = 0; j < 34; j++)
+        {
+            printf("L2Request %d hit %d = %d \n",i , j ,L2_warp_div_match[i][j]);
         }   
     }
 }
@@ -557,6 +567,7 @@ enum cache_request_status tag_array::access( new_addr_type addr, unsigned time, 
             if( m_lines[idx].m_status == MODIFIED ) {
                 wb = true;
                 evicted = m_lines[idx];
+                wb_div = m_lines[idx].block_div_num;
             }
             m_lines[idx].allocate( m_config.tag(addr), m_config.block_addr(addr), time );
             m_lines[idx].set_block_div(request_div);
@@ -1187,7 +1198,8 @@ data_cache::wr_miss_wa( new_addr_type addr,
                     mf->get_sid(),
                     mf->get_tpc(),
                     mf->get_mem_config());
-
+    //Zu_Hao: 因為write miss 會有write allocate所以在send_read_request時mf所記錄的mf_div是初始值
+    n_mf->mf_div=mf->mf_div;
     bool do_miss = false;
     bool wb = false;
     cache_block_t evicted;
@@ -1284,8 +1296,11 @@ data_cache::rd_miss_base( new_addr_type addr,
         if(wb && (m_config.m_write_policy != WRITE_THROUGH) ){ 
             mem_fetch *wb = m_memfetch_creator->alloc(evicted.m_block_addr,
                 m_wrbk_type,m_config.get_line_sz(),true);
-        send_write_request(wb, WRITE_BACK_REQUEST_SENT, time, events);
-    }
+            //Zu_Hao: 因為read miss時，原本的cache line要寫回L2，但是不是請求，所以該筆資料的div值要自己改變。
+            wb->mf_div = wb_div; 
+            //已經把read miss 跟指令的 div都改好了，但是L1跟ori的都還沒改完
+            send_write_request(wb, WRITE_BACK_REQUEST_SENT, time, events);
+        }
         return MISS;
     }
     return RESERVATION_FAIL;
@@ -1416,13 +1431,12 @@ data_cache::access_L1D_VC( new_addr_type addr,
     new_addr_type block_addr = m_config.block_addr(addr);
     unsigned cache_index = (unsigned)-1;
     enum cache_request_status probe_status = m_tag_array->probe_div_match( block_addr, cache_index ,mf->mf_div); 
-    bool is_use_L1VC = 0;   //VC開關
     ////////////////////victim cache///////////////////////////   
     if (is_use_L1VC && probe_status == MISS ){ //"miss進去VC做事" "RF不做事"  "HIT跟HitP就直接proccess tag"
         victim_status =  m_victim_cache->VC_probe(block_addr,VC_index);  //還沒做好
         //printf("VC_idx =%d  ,L1_temp_miss_div = %d ,L1_temp_ishit =%u ,status= %d victim_status=%d\n",VC_index,L1_temp_miss_div,L1_temp_ishit,L1_status_invaild,victim_status);
         if(victim_status == MISS){    //victim cache miss
-            if(L1_temp_miss_div ==1 && L1_temp_ishit > 5 && L1_status_invaild!=1){
+            if(L1_temp_miss_div ==1  && L1_temp_ishit > 5 &&L1_status_invaild!=1){
                 //printf("%d ,VC=miss goto_line_swap!!!\n",victim_status);
                 m_victim_cache->Line_Swap(cache_index,VC_index);
                 probe_status = m_tag_array->probe_div_match( block_addr, cache_index ,mf->mf_div);   //確保狀態變成invalid有錯
@@ -1543,7 +1557,7 @@ l1_cache::access( new_addr_type addr,
                   std::list<cache_event> &events )
 {
 //Zu_Hao: use origin L1 data cache or our L1 data cache with victim cache.
-    if(use_ori_L1cache)
+    if(!use_bypass_L1cache)
         return data_cache::access( addr, mf, time, events );
     else
         return data_cache::access_L1D_VC( addr, mf, time, events ,&m_victim_cache,this);
@@ -1562,6 +1576,12 @@ void l1_cache::printf_ishit(unsigned CL_ishit[])
 {
     for(int i = 0 ; i<11 ;i++)
         CL_ishit[i] = L1_ishit_count[i];
+    unsigned L2sun_ishit = 0;
+    for (int i = 0; i < 11; i++){
+        L2sun_ishit+=L2_ishit_count[i];
+        printf("L2CL_ishit %d = %d\n",i,L2_ishit_count[i]);
+    }
+    printf("L2CL_sun = %u\n",L2sun_ishit);;
 }
 // The l2 cache access function calls the base data_cache access
 // implementation.  When the L2 needs to diverge from L1, L2 specific
@@ -1573,7 +1593,7 @@ l2_cache::access( new_addr_type addr,
                   std::list<cache_event> &events )
 {
 //Zu_Hao:use origin L2  cache or our l2 cache with victim cache
-    if (use_ori_L2cache)
+    if (!use_bypass_L2cache)
         return data_cache::access( addr, mf, time, events );
     else
         return data_cache::access_L2_VC(addr,mf,time,events,&m_victim_l2cache,this);
