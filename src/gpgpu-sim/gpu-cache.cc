@@ -55,7 +55,7 @@ int      L2VC_miss =0;
 int      L2VC_RF =0;   
 void cache_statistic::return_VC_statistic(){
     printf("L1VC_ACCESS = %d \n L1VC_HIT =%d \n L1VC_MISS =%d \n L1VC_RF= %d\n",L1VC_access,L1VC_hit,L1VC_miss,L1VC_RF);
-    printf("L2VC_ACCESS = %d \n L2VC_HIT =%d \n L2VC_MISS =%d \n L2VC_RF= %d\n",L1VC_access,L1VC_hit,L1VC_miss,L1VC_RF);
+    printf("L2VC_ACCESS = %d \n L2VC_HIT =%d \n L2VC_MISS =%d \n L2VC_RF= %d\n",L2VC_access,L2VC_hit,L2VC_miss,L2VC_RF);
 }
 void cache_statistic::return_div_match_statistic(){
     for (int i = 0; i < 5; i++)
